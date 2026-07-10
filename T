@@ -1,0 +1,42 @@
+name: Extract ZIP Archive
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_file:
+        description: 'ZIP file to extract (e.g., Signal-Gate-Pulse-consumer-v1-patched-2.6.zip)'
+        required: true
+        default: 'Signal-Gate-Pulse-consumer-v1-patched-2.6.zip'
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download and extract ZIP
+        run: |
+          if [ ! -f "${{ github.event.inputs.zip_file }}" ]; then
+            echo "Error: ${{ github.event.inputs.zip_file }} not found"
+            exit 1
+          fi
+          mkdir -p /tmp/extract
+          unzip -q "${{ github.event.inputs.zip_file }}" -d /tmp/extract
+          
+          if [ $(ls -1 /tmp/extract | wc -l) -eq 1 ]; then
+            extracted_dir=$(ls -d /tmp/extract/*)
+            cp -r "$extracted_dir"/* .
+          else
+            cp -r /tmp/extract/* .
+          fi
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || (git commit -m "Extract ${{ github.event.inputs.zip_file }}" && git push)
